@@ -121,23 +121,12 @@ def book_flight(request):
 def payment_methods(request):
     if request.method != 'GET':
       return raise_error("Only POST requests are supported for this endpoint")
-    result = requests.get('http://directory.pythonanywhere.com/api/list/', json={"company_type": "payment"})
-
-    if result.status_code == 200:
-      try:
-        companies = result.json()
-      except ValueError:
-        return raise_error("Invalid response from directory server!")
-
-    companies_list = companies["company_list"]
-    if len(companies_list) == 0:
-      return raise_error("No payment providers")
 
     response = {"pay_providers": []}
-    for each in companies_list:
-      company = PaymentProvider.objects.filter(name=each["company_name"])
+    companies = PaymentProvider.objects.all()
+    for company in companies:
       response["pay_providers"].append(
-        {"pay_provider_id": company[0].pk, "pay_provider_name": company[0].name}
+        {"pay_provider_id": company.pk, "pay_provider_name": company.name}
       )
 
     return JsonResponse(response, status=201, reason="CREATED")
@@ -180,9 +169,6 @@ def pay_for_booking(request):
     session = requests.Session()
     login_response = session.post(provider.address + "/api/login/", data={"username": username, "password": password})
     invoice_response = session.post(provider.address + "/api/createinvoice/", json=request_body)
-
-    print(invoice_response)
-    print(invoice_response.content)
 
     if invoice_response.status_code != 201:
       return raise_error("Bad response from payment provider")
